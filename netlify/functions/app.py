@@ -18,13 +18,21 @@ current_dir = Path(__file__).resolve().parent
 public_dir = current_dir.parent.parent / 'public'
 sys.path.append(str(public_dir))
 
+# Set environment variables for Flask
+os.environ['FLASK_APP'] = str(public_dir / 'app.py')
+os.environ['TEMPLATES_AUTO_RELOAD'] = 'True'
+
 logger.info(f"Current directory: {current_dir}")
 logger.info(f"Public directory: {public_dir}")
 logger.info(f"Python path: {sys.path}")
+logger.info(f"Template folder: {public_dir / 'templates'}")
 
 try:
     from app import app
+    # Set the template folder explicitly
+    app.template_folder = str(public_dir / 'templates')
     logger.info("Successfully imported Flask app")
+    logger.info(f"Flask app template folder: {app.template_folder}")
 except Exception as e:
     logger.error(f"Failed to import Flask app: {str(e)}")
     logger.error(traceback.format_exc())
@@ -49,7 +57,7 @@ def handler(event, context):
         logger.debug(f"Query parameters: {json.dumps(query_string, indent=2)}")
         
         if body:
-            logger.debug(f"Request body: {body[:200]}...")  # Log first 200 chars of body
+            logger.debug(f"Request body: {body[:200]}...")
 
         # Convert Netlify event to WSGI environment
         environ = {
@@ -72,6 +80,10 @@ def handler(event, context):
             'HTTP_HOST': headers.get('host', ''),
             'HTTP_USER_AGENT': headers.get('user-agent', ''),
             'HTTP_ACCEPT': headers.get('accept', ''),
+            'wsgi.url_scheme': 'https',
+            'HTTPS': 'on',
+            'SERVER_PORT': '443',
+            'HTTP_X_FORWARDED_PROTO': 'https',
         }
 
         # Add HTTP headers
@@ -91,21 +103,26 @@ def handler(event, context):
             logger.info(f"Response status: {status}")
             logger.debug(f"Response headers: {json.dumps(dict(response_headers), indent=2)}")
 
-        # Get response from Flask app
-        logger.info("Calling Flask application")
-        response_body = app(environ, start_response)
-        
-        # Convert response body to string
-        if isinstance(response_body, (list, tuple)):
-            response_body = b''.join(response_body)
-        if isinstance(response_body, bytes):
-            response_body = response_body.decode('utf-8')
-        
-        response['body'] = response_body
-        logger.info(f"Response generated successfully, body length: {len(response_body)}")
-        logger.debug(f"Response body preview: {response_body[:200]}...")  # Log first 200 chars
-        
-        return response
+        try:
+            # Get response from Flask app
+            logger.info("Calling Flask application")
+            response_body = app(environ, start_response)
+            
+            # Convert response body to string
+            if isinstance(response_body, (list, tuple)):
+                response_body = b''.join(response_body)
+            if isinstance(response_body, bytes):
+                response_body = response_body.decode('utf-8')
+            
+            response['body'] = response_body
+            logger.info(f"Response generated successfully, body length: {len(response_body)}")
+            logger.debug(f"Response body preview: {response_body[:200]}...")
+            
+            return response
+        except Exception as e:
+            logger.error(f"Error in Flask app: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise
 
     except Exception as e:
         logger.error("Error handling request")

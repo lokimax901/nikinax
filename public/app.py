@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import requests
 import asyncio
 import sys
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -26,7 +27,16 @@ logger.info("Starting Flask application")
 logger.debug(f"Bot Token: {'Set' if os.getenv('TELEGRAM_BOT_TOKEN') else 'Not set'}")
 logger.debug(f"Chat ID: {'Set' if os.getenv('TELEGRAM_CHAT_ID') else 'Not set'}")
 
-app = Flask(__name__)
+# Initialize Flask app with explicit template folder
+current_dir = Path(__file__).resolve().parent
+template_dir = current_dir / 'templates'
+app = Flask(__name__, 
+           template_folder=str(template_dir),
+           static_folder=str(current_dir / 'static'))
+
+logger.info(f"Template directory: {template_dir}")
+logger.info(f"Template directory exists: {template_dir.exists()}")
+logger.debug(f"Template files: {list(template_dir.glob('*.html'))}")
 
 # Database configuration
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///accounts.db')
@@ -34,6 +44,7 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 logger.info(f"Database URL type: {DATABASE_URL.split('://')[0]}")
+logger.info(f"Full Database URL: {'[REDACTED]' if 'postgres' in DATABASE_URL else DATABASE_URL}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
