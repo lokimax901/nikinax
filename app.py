@@ -16,7 +16,13 @@ print("Bot Token:", os.getenv('TELEGRAM_BOT_TOKEN'))
 print("Chat ID:", os.getenv('TELEGRAM_CHAT_ID'))
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///accounts.db'
+
+# Database configuration
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///accounts.db')
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
