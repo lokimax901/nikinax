@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -7,13 +8,23 @@ import io
 from dotenv import load_dotenv
 import requests
 import asyncio
+import sys
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger('flask_app')
 
 # Load environment variables
 load_dotenv()
 
 # Debug print
-print("Bot Token:", os.getenv('TELEGRAM_BOT_TOKEN'))
-print("Chat ID:", os.getenv('TELEGRAM_CHAT_ID'))
+logger.info("Starting Flask application")
+logger.debug(f"Bot Token: {'Set' if os.getenv('TELEGRAM_BOT_TOKEN') else 'Not set'}")
+logger.debug(f"Chat ID: {'Set' if os.getenv('TELEGRAM_CHAT_ID') else 'Not set'}")
 
 app = Flask(__name__)
 
@@ -21,6 +32,8 @@ app = Flask(__name__)
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///accounts.db')
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+logger.info(f"Database URL type: {DATABASE_URL.split('://')[0]}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -69,8 +82,17 @@ def send_telegram_notification(message):
 
 @app.route('/')
 def index():
-    accounts = Account.query.filter_by(is_available=True).all()
-    return render_template('index.html', accounts=accounts)
+    logger.info("Handling index route request")
+    try:
+        accounts = Account.query.filter_by(is_available=True).all()
+        logger.debug(f"Found {len(accounts)} available accounts")
+        template_path = os.path.join(app.root_path, 'templates', 'index.html')
+        logger.debug(f"Template path: {template_path}")
+        logger.debug(f"Template exists: {os.path.exists(template_path)}")
+        return render_template('index.html', accounts=accounts)
+    except Exception as e:
+        logger.error(f"Error in index route: {str(e)}", exc_info=True)
+        return f"Error: {str(e)}", 500
 
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
@@ -228,19 +250,31 @@ def export_accounts():
     )
 
 # Initialize database and create test account
+logger.info("Initializing database")
 with app.app_context():
-    db.create_all()
-    # Create test account if it doesn't exist
-    if not Account.query.filter_by(email='test@example.com').first():
-        test_account = Account(
-            email='test@example.com',
-            password='testpass123',
-            service='Netflix',
-            verification_code='123456',
-            is_available=True
-        )
-        db.session.add(test_account)
-        db.session.commit()
+    try:
+        logger.debug("Creating database tables")
+        db.create_all()
+        logger.debug("Database tables created successfully")
+        
+        # Create test account if it doesn't exist
+        if not Account.query.filter_by(email='test@example.com').first():
+            logger.debug("Creating test account")
+            test_account = Account(
+                email='test@example.com',
+                password='testpass123',
+                service='Netflix',
+                verification_code='123456',
+                is_available=True
+            )
+            db.session.add(test_account)
+            db.session.commit()
+            logger.info("Test account created successfully")
+        else:
+            logger.debug("Test account already exists")
+    except Exception as e:
+        logger.error(f"Error during database initialization: {str(e)}", exc_info=True)
+        raise
 
 if __name__ == '__main__':
     app.run(debug=True) 
