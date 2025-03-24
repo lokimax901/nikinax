@@ -227,8 +227,10 @@ def export_accounts():
         download_name='accounts.csv'
     )
 
-def create_test_account():
-    # Check if test account already exists
+# Initialize database and create test account
+with app.app_context():
+    db.create_all()
+    # Create test account if it doesn't exist
     if not Account.query.filter_by(email='test@example.com').first():
         test_account = Account(
             email='test@example.com',
@@ -241,7 +243,4 @@ def create_test_account():
         db.session.commit()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        create_test_account()
     app.run(debug=True) 

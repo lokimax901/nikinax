@@ -11,6 +11,11 @@ from app import app
 
 def handler(event, context):
     """Handle incoming requests."""
+    # Debug print
+    print("Received event:", event)
+    print("Current directory:", os.getcwd())
+    print("Python path:", sys.path)
+    
     # Parse request
     path = event.get('path', '/')
     http_method = event.get('httpMethod', 'GET')
@@ -31,11 +36,14 @@ def handler(event, context):
         'SERVER_PROTOCOL': 'HTTP/1.1',
         'wsgi.version': (1, 0),
         'wsgi.url_scheme': 'https',
-        'wsgi.input': body.encode('utf-8'),
+        'wsgi.input': body.encode('utf-8') if body else b'',
         'wsgi.errors': sys.stderr,
         'wsgi.multithread': False,
         'wsgi.multiprocess': False,
         'wsgi.run_once': False,
+        'HTTP_HOST': headers.get('host', ''),
+        'HTTP_USER_AGENT': headers.get('user-agent', ''),
+        'HTTP_ACCEPT': headers.get('accept', ''),
     }
 
     # Add HTTP headers
@@ -50,15 +58,24 @@ def handler(event, context):
         status_code = int(status.split()[0])
         response['statusCode'] = status_code
         response['headers'] = dict(response_headers)
+        print("Response headers:", response_headers)
 
-    # Get response from Flask app
-    response_body = app(environ, start_response)
-    
-    # Convert response body to string
-    if isinstance(response_body, (list, tuple)):
-        response_body = b''.join(response_body)
-    if isinstance(response_body, bytes):
-        response_body = response_body.decode('utf-8')
-    
-    response['body'] = response_body
-    return response 
+    try:
+        # Get response from Flask app
+        response_body = app(environ, start_response)
+        
+        # Convert response body to string
+        if isinstance(response_body, (list, tuple)):
+            response_body = b''.join(response_body)
+        if isinstance(response_body, bytes):
+            response_body = response_body.decode('utf-8')
+        
+        response['body'] = response_body
+        print("Response body length:", len(response_body))
+        return response
+    except Exception as e:
+        print("Error handling request:", str(e))
+        return {
+            'statusCode': 500,
+            'body': str(e)
+        } 
