@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .account-card { transition: transform 0.2s; }
+        .account-card:hover { transform: translateY(-5px); }
+        .service-badge { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+        .top-actions { margin-bottom: 2rem; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-user-shield me-2"></i>Account Management</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Top Actions -->
+        <div class="top-actions d-flex gap-3">
+            <button class="btn btn-success" onclick="getNewAccount()">
+                <i class="fas fa-plus me-2"></i>Get New Account
+            </button>
+            <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">
+                <i class="fas fa-file-import me-2"></i>Import Accounts
+            </button>
+            <a href="/api/accounts/export" class="btn btn-secondary">
+                <i class="fas fa-file-export me-2"></i>Export Accounts
+            </a>
+            <input type="file" id="importFile" accept=".csv" style="display: none" onchange="importAccounts(this)">
+        </div>
+
+        <div class="row" id="accounts-container">
+            {% for account in accounts %}
+            <div class="col-md-4 mb-4" id="account-card-{{ account.id }}">
+                <div class="card account-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">{{ account.service }}</h5>
+                            <span class="badge bg-primary service-badge">{{ account.service }}</span>
+                        </div>
+                        <p class="card-text">
+                            <strong>Email:</strong> {{ account.email }}<br>
+                            <strong>Password:</strong> {{ account.password }}<br>
+                            <strong>Verification Code:</strong> {{ account.verification_code or "N/A" }}
+                        </p>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="openIssueModal({{ account.id }})">
+                                <i class="fas fa-exclamation-circle me-1"></i>Report Issue
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="replaceAccount({{ account.id }})">
+                                <i class="fas fa-sync-alt me-1"></i>Replace Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Issue Modal -->
+    <div class="modal fade" id="issueModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Report Issue</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="issueForm">
+                        <input type="hidden" id="issueAccountId">
+                        <div class="mb-3">
+                            <label class="form-label">Issue Type</label>
+                            <select class="form-select" id="issueType" required>
+                                <option value="">Select an issue type</option>
+                                <option value="Incorrect Details">Incorrect Details</option>
+                                <option value="Delayed Delivery">Delayed Delivery</option>
+                                <option value="No Subscription">No Subscription</option>
+                                <option value="Streaming Limit">Streaming Limit</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="issueDescription" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitIssue()">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let issueModal;
+        document.addEventListener("DOMContentLoaded", function() {
+            issueModal = new bootstrap.Modal(document.getElementById("issueModal"));
+        });
+
+        function createAccountCard(account) {
+            return `
+                <div class="col-md-4 mb-4" id="account-card-${account.id}">
+                    <div class="card account-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title mb-0">${account.service}</h5>
+                                <span class="badge bg-primary service-badge">${account.service}</span>
+                            </div>
+                            <p class="card-text">
+                                <strong>Email:</strong> ${account.email}<br>
+                                <strong>Password:</strong> ${account.password}<br>
+                                <strong>Verification Code:</strong> ${account.verification_code || "N/A"}
+                            </p>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-primary btn-sm" onclick="openIssueModal(${account.id})">
+                                    <i class="fas fa-exclamation-circle me-1"></i>Report Issue
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="replaceAccount(${account.id})">
+                                    <i class="fas fa-sync-alt me-1"></i>Replace Account
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateAccountCard(accountId, account) {
+            const cardHtml = createAccountCard(account);
+            const oldCard = document.getElementById(`account-card-${accountId}`);
+            oldCard.outerHTML = cardHtml;
+        }
+
+        async function getNewAccount() {
+            try {
+                const response = await fetch("/api/accounts/new");
+                if (response.ok) {
+                    const account = await response.json();
+                    const container = document.getElementById("accounts-container");
+                    container.insertAdjacentHTML('afterbegin', createAccountCard(account));
+                } else {
+                    const error = await response.json();
+                    alert(error.error || "Error getting new account");
+                }
+            } catch (error) {
+                console.error("Error getting new account:", error);
+                alert("Error getting new account");
+            }
+        }
+
+        function openIssueModal(accountId) {
+            document.getElementById("issueAccountId").value = accountId;
+            issueModal.show();
+        }
+
+        async function submitIssue() {
+            const accountId = document.getElementById("issueAccountId").value;
+            const issueType = document.getElementById("issueType").value;
+            const description = document.getElementById("issueDescription").value;
+
+            try {
+                const response = await fetch("/api/issues", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ account_id: accountId, issue_type: issueType, description })
+                });
+
+                if (response.ok) {
+                    alert("Issue reported successfully");
+                    issueModal.hide();
+                    document.getElementById("issueForm").reset();
+                }
+            } catch (error) {
+                console.error("Error submitting issue:", error);
+                alert("Error submitting issue");
+            }
+        }
+
+        async function replaceAccount(accountId) {
+            try {
+                const response = await fetch("/api/replacements", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ account_id: accountId })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateAccountCard(accountId, data.account);
+                    alert("Account replaced successfully");
+                } else {
+                    const error = await response.json();
+                    alert(error.error || "Error replacing account");
+                }
+            } catch (error) {
+                console.error("Error replacing account:", error);
+                alert("Error replacing account");
+            }
+        }
+
+        async function importAccounts(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/accounts/import', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Error importing accounts');
+                }
+            } catch (error) {
+                console.error('Error importing accounts:', error);
+                alert('Error importing accounts');
+            }
+
+            // Clear the input
+            input.value = '';
+        }
+    </script>
+</body>
+</html>
