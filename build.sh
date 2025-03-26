@@ -1,72 +1,84 @@
 #!/bin/bash
-set -e # Exit on error
 
-echo "Starting build process..."
+# Exit on any error
+set -e
 
-# Verify required environment variables
-echo "Verifying environment variables..."
-required_vars=(
-    "DB_HOST"
-    "DB_NAME"
-    "DB_USER"
-    "DB_PASSWORD"
-    "DB_PORT"
-    "FLASK_SECRET_KEY"
-    "FLASK_ENV"
-    "SUPABASE_URL"
-    "SUPABASE_KEY"
-)
+# Print debug information
+echo "=== Debug Information ==="
+pwd
+ls -la
+echo "Current directory contents:"
+ls -R
 
-for var in "${required_vars[@]}"; do
-    if [ -z "${!var}" ]; then
-        echo "Error: Required environment variable $var is not set"
-        exit 1
-    fi
-done
+echo "=== Starting build process ==="
 
-# Setup Python environment
-echo "Setting up Python environment..."
-if ! command -v python3 &> /dev/null; then
-    echo "Error: python3 could not be found"
-    exit 1
-fi
+# Print all environment variables (excluding sensitive data)
+echo "=== Environment Variables ==="
+env | grep -v 'PASSWORD\|KEY\|SECRET'
 
-echo "Python version:"
-python3 --version
+# Verify Python installation
+echo "=== Verifying Python installation ==="
+which python3 || which python3.9 || which python || true
+python3 --version || python3.9 --version || python --version
 
-echo "Installing dependencies..."
-python3 -m pip install --user --upgrade pip
-python3 -m pip install --user -r requirements.txt
+# Create and activate virtual environment
+echo "=== Setting up Python virtual environment ==="
+python3.9 -m venv .venv
+source .venv/bin/activate || source .venv/Scripts/activate
+
+# Verify Python version
+echo "=== Python Version ==="
+python --version
+
+# Install dependencies
+echo "=== Installing dependencies ==="
+python3 -m pip install --user --upgrade pip || python -m pip install --user --upgrade pip
+python3 -m pip install --user -r requirements.txt || python -m pip install --user -r requirements.txt
 
 # Create necessary directories
-echo "Creating directories..."
+echo "=== Creating directories ==="
 mkdir -p public
-mkdir -p netlify/functions
+mkdir -p netlify/functions/app
 
-# Copy application files
-echo "Copying application files..."
-cp -r src/* netlify/functions/
-cp requirements.txt netlify/functions/
-cp runtime.txt netlify/functions/
+# Setup Flask application for Netlify Functions
+echo "=== Setting up Flask application ==="
+cat > netlify/functions/app/index.py << EOL
+from flask import Flask, request
+from flask_cors import CORS
+import os
+import sys
 
-# Create Procfile for gunicorn
-echo "Creating Procfile..."
-cat > netlify/functions/Procfile << EOL
-web: gunicorn --chdir src app:app
+# Add the src directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
+
+from app import app as flask_app
+
+# Enable CORS
+CORS(flask_app)
+
+# Handler for Netlify Functions
+def handler(event, context):
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'text/html',
+        },
+        'body': 'Flask app is running'
+    }
+
+# For local development
+if __name__ == '__main__':
+    flask_app.run()
 EOL
 
-# Copy static files and templates
-echo "Copying static files..."
-if [ -d "src/templates" ]; then
-    cp -r src/templates/* public/ 2>/dev/null || true
-fi
+# Copy application files
+echo "=== Copying application files ==="
+cp -r src/* netlify/functions/app/
+cp requirements.txt netlify/functions/app/
+cp runtime.txt netlify/functions/app/
 
-if [ -d "src/static" ]; then
-    cp -r src/static/* public/ 2>/dev/null || true
-fi
-
-# Create a simple index.html that redirects to the Flask app
-echo "Creating index.html..."
+# Create simple index.html
+echo "=== Creating index.html ==="
 cat > public/index.html << EOL
 <!DOCTYPE html>
 <html>
@@ -75,6 +87,7 @@ cat > public/index.html << EOL
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <style>
         body {
             display: flex;
@@ -105,18 +118,16 @@ cat > public/index.html << EOL
         <p class="h4 d-inline-block">Loading SubMax...</p>
     </div>
     <script>
-        window.location.href = '/.netlify/functions/app';
+        setTimeout(function() {
+            window.location.href = '/.netlify/functions/app';
+        }, 1500);
     </script>
 </body>
 </html>
 EOL
 
-# Print environment information for debugging
-echo "Environment information:"
-echo "Python version: $(python3 --version)"
-echo "Pip version: $(python3 -m pip --version)"
-echo "Current directory: $(pwd)"
-echo "Directory contents:"
-ls -la
+# Print directory structure for debugging
+echo "=== Directory Structure ==="
+ls -R || tree -L 3
 
-echo "Build completed successfully!" 
+echo "=== Build completed successfully ===" 
