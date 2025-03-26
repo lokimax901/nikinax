@@ -3,6 +3,11 @@ set -e # Exit on error
 
 echo "Starting build process..."
 
+# Setup Python environment
+echo "Setting up Python environment..."
+python3.9 -m venv .venv
+source .venv/bin/activate || . .venv/Scripts/activate
+
 # Install Python dependencies
 echo "Installing Python dependencies..."
 python -m pip install --upgrade pip
@@ -68,5 +73,11 @@ cat > public/index.html << EOL
 </body>
 </html>
 EOL
+
+# Print Python and pip versions for debugging
+echo "Python version:"
+python --version
+echo "Pip version:"
+pip --version
 
 echo "Build completed successfully!" 
