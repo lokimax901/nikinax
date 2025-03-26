@@ -1,16 +1,30 @@
 #!/bin/bash
+set -e # Exit on error
+
+echo "Starting build process..."
+
 # Install Python dependencies
+echo "Installing Python dependencies..."
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 # Create necessary directories
+echo "Creating directories..."
 mkdir -p public
 mkdir -p netlify/functions
 
 # Copy static files and templates
-cp -r src/templates/* public/ 2>/dev/null || true
-cp -r src/static/* public/ 2>/dev/null || true
+echo "Copying static files..."
+if [ -d "src/templates" ]; then
+    cp -r src/templates/* public/ 2>/dev/null || true
+fi
+
+if [ -d "src/static" ]; then
+    cp -r src/static/* public/ 2>/dev/null || true
+fi
 
 # Create a simple index.html that redirects to the Flask app
+echo "Creating index.html..."
 cat > public/index.html << EOL
 <!DOCTYPE html>
 <html>
@@ -55,5 +69,4 @@ cat > public/index.html << EOL
 </html>
 EOL
 
-# Make the script executable
-chmod +x build.sh 
+echo "Build completed successfully!" 
