@@ -10,14 +10,18 @@ class Config:
     
     # Database configuration for Supabase
     DB_CONFIG = {
-        'host': os.getenv('DB_HOST', 'localhost'),
+        'host': os.getenv('DB_HOST', 'db.nusligglyvgsmuvauyce.supabase.co'),
         'port': os.getenv('DB_PORT', '5432'),
         'database': os.getenv('DB_NAME', 'postgres'),
         'user': os.getenv('DB_USER', 'postgres'),
-        'password': os.getenv('DB_PASSWORD', 'postgres'),
+        'password': os.getenv('DB_PASSWORD'),
         'sslmode': 'require',  # Required for Supabase
         'options': '-c search_path=public'  # Set schema to public
     }
+    
+    # Supabase configuration
+    SUPABASE_URL = os.getenv('SUPABASE_URL', 'https://nusligglyvgsmuvauyce.supabase.co')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
     
     # Flask configuration
     DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
