@@ -21,8 +21,21 @@ done
 
 # Setup Python environment
 echo "Setting up Python environment..."
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 could not be found"
+    exit 1
+fi
+
+echo "Python version:"
+python3 --version
+
+echo "Installing pip..."
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3 get-pip.py --user
+
+echo "Installing dependencies..."
+python3 -m pip install --user --upgrade pip
+python3 -m pip install --user -r requirements.txt
 
 # Create necessary directories
 echo "Creating directories..."
@@ -87,8 +100,8 @@ EOL
 
 # Print environment information for debugging
 echo "Environment information:"
-echo "Python version: $(python --version)"
-echo "Pip version: $(pip --version)"
+echo "Python version: $(python3 --version)"
+echo "Pip version: $(python3 -m pip --version)"
 echo "Current directory: $(pwd)"
 echo "Directory contents:"
 ls -la
