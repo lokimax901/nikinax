@@ -7,7 +7,7 @@ mkdir -p public
 mkdir -p netlify/functions
 
 # Copy static files and templates
-cp -r src/templates/* public/
+cp -r src/templates/* public/ 2>/dev/null || true
 cp -r src/static/* public/ 2>/dev/null || true
 
 # Create a simple index.html that redirects to the Flask app
