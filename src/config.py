@@ -6,19 +6,22 @@ load_dotenv()
 
 class Config:
     """Application configuration."""
+    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
+    
+    # Database configuration for Supabase
     DB_CONFIG = {
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': os.getenv('DB_PORT', '5432'),
-        'database': os.getenv('DB_NAME', 'submax'),
+        'database': os.getenv('DB_NAME', 'postgres'),
         'user': os.getenv('DB_USER', 'postgres'),
         'password': os.getenv('DB_PASSWORD', 'postgres'),
-        'sslmode': 'require'  # Enable SSL for production
+        'sslmode': 'require',  # Required for Supabase
+        'options': '-c search_path=public'  # Set schema to public
     }
     
     # Flask configuration
     DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     TESTING = False
-    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
     
     # Rate limiting
     RATELIMIT_DEFAULT = "200 per day"
