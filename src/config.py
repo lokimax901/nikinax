@@ -7,20 +7,21 @@ load_dotenv()
 class Config:
     """Application configuration."""
     DB_CONFIG = {
+        'host': os.getenv('DB_HOST', 'localhost'),
+        'port': os.getenv('DB_PORT', '5432'),
         'database': os.getenv('DB_NAME', 'submax'),
         'user': os.getenv('DB_USER', 'postgres'),
         'password': os.getenv('DB_PASSWORD', 'postgres'),
-        'host': os.getenv('DB_HOST', 'localhost'),
-        'port': int(os.getenv('DB_PORT', '5432'))
+        'sslmode': 'require'  # Enable SSL for production
     }
     
     # Flask configuration
     DEBUG = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
     TESTING = False
-    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'dev')
+    SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-here')
     
     # Rate limiting
-    RATELIMIT_DEFAULT = "100 per minute"
+    RATELIMIT_DEFAULT = "200 per day"
     RATELIMIT_STORAGE_URL = "memory://"
     
     # Health check configuration
