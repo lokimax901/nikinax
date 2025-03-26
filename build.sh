@@ -7,7 +7,12 @@ echo "Starting build process..."
 echo "Verifying environment variables..."
 required_vars=(
     "DB_HOST"
+    "DB_NAME"
+    "DB_USER"
     "DB_PASSWORD"
+    "DB_PORT"
+    "FLASK_SECRET_KEY"
+    "FLASK_ENV"
     "SUPABASE_URL"
     "SUPABASE_KEY"
 )
@@ -29,10 +34,6 @@ fi
 echo "Python version:"
 python3 --version
 
-echo "Installing pip..."
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python3 get-pip.py --user
-
 echo "Installing dependencies..."
 python3 -m pip install --user --upgrade pip
 python3 -m pip install --user -r requirements.txt
@@ -41,6 +42,18 @@ python3 -m pip install --user -r requirements.txt
 echo "Creating directories..."
 mkdir -p public
 mkdir -p netlify/functions
+
+# Copy application files
+echo "Copying application files..."
+cp -r src/* netlify/functions/
+cp requirements.txt netlify/functions/
+cp runtime.txt netlify/functions/
+
+# Create Procfile for gunicorn
+echo "Creating Procfile..."
+cat > netlify/functions/Procfile << EOL
+web: gunicorn --chdir src app:app
+EOL
 
 # Copy static files and templates
 echo "Copying static files..."
@@ -92,7 +105,7 @@ cat > public/index.html << EOL
         <p class="h4 d-inline-block">Loading SubMax...</p>
     </div>
     <script>
-        window.location.href = '/admin/login';
+        window.location.href = '/.netlify/functions/app';
     </script>
 </body>
 </html>
