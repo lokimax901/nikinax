@@ -3,13 +3,24 @@ set -e # Exit on error
 
 echo "Starting build process..."
 
+# Verify required environment variables
+echo "Verifying environment variables..."
+required_vars=(
+    "DB_HOST"
+    "DB_PASSWORD"
+    "SUPABASE_URL"
+    "SUPABASE_KEY"
+)
+
+for var in "${required_vars[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "Error: Required environment variable $var is not set"
+        exit 1
+    fi
+done
+
 # Setup Python environment
 echo "Setting up Python environment..."
-python3.9 -m venv .venv
-source .venv/bin/activate || . .venv/Scripts/activate
-
-# Install Python dependencies
-echo "Installing Python dependencies..."
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 
@@ -74,10 +85,12 @@ cat > public/index.html << EOL
 </html>
 EOL
 
-# Print Python and pip versions for debugging
-echo "Python version:"
-python --version
-echo "Pip version:"
-pip --version
+# Print environment information for debugging
+echo "Environment information:"
+echo "Python version: $(python --version)"
+echo "Pip version: $(pip --version)"
+echo "Current directory: $(pwd)"
+echo "Directory contents:"
+ls -la
 
 echo "Build completed successfully!" 
